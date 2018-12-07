@@ -1,0 +1,54 @@
+Parser notes
+===============
+
+This document contains some notes on how the parser works and why it is so.
+
+
+S-Pankki PDF structure
+-----------------------
+
+Here's a quick overview of the characteristics of the structure that are most relevant to
+parsing the PDF:
+
+- the PDFs are made of three main parts; top and bottom that contain various metadata, and
+  the list of transactions
+
+- visually, the list of transactions takes a form of a table, however it is missing any
+  kind of explicit row indicators (lines)
+
+- the text elements can be grouped, but not always so
+
+- the text elements may contain many logical parts, separated by a whitespace or a newline
+
+
+How PDFMiner works
+-------------------
+
+PDFMiner provides a list of elements found on each page. Each element has type and
+coordinate information. Elements may also be grouped, so the element structure constitutes
+a hierarchy. However given the flexibility of how PDFs can be constructed, this structure
+is completely application-dependent and thus varies wildly.
+
+Table augmentation
+------------------
+
+Given that the S-Pankki PDFs have no row lines. We need some other means of identifying
+rows and their limits. For this, we use the transaction counters that start from 1 for
+each statement, and that can be found in column four. For this purpose, there are
+utilities for:
+
+- generating (left, right) pairs of column edge coordinates
+- extracting the fourth column tx counters
+
+Table specification
+--------------------
+
+There are some utility functions to determine for example the coordinates of the
+transaction table, column borders and so on.
+
+Text element extraction
+------------------------
+
+The PDFMiner element output can have many different kinds of text elements, some of which
+are actually containers. For this reason, an utility is provided that walks down through
+all the text elements so each logical text element (and its coordinates) can be accessed.
