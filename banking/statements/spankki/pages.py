@@ -46,4 +46,3 @@ def all_txt_elms(elms):
         else:
             pass
 
-
