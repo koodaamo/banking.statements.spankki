@@ -18,17 +18,78 @@ def rowcoordinates(elms):
     return tuple(zip(coords, coords[1:]))
 
 
-def txtelmrows(elms, under=3, over=3):
+def txtelmrows(elms, under=2, over=2):
     "generate coordinate-bound text element rows (coordinates extended by under and over)"
     txtelms = tuple(all_txt_elms(elms))
     for (upper, lower) in rowcoordinates(elms):
         yield (e for e in txtelms if e.y0 >= lower - under and e.y1 <= upper + over)
 
+
+def txtrow(rowelemgen):
+    rowelems = list(rowelemgen)
+    rowelems.sort(key=lambda e: e.x0)
+    return [e.get_text().strip() for e in rowelems]
+
+
 def normalizerow(row):
+    "fix row contents"
+
+    size = len(row)
+
+    for i, txt in enumerate(row):
+        if "KIRJAUSPÄIVÄ" in txt:
+            del row[i]
+
+    # fix short row in case of "system" transactions
+    if size == 4 and row[0].endswith("HOK-ELANTO"):
+        row.insert(2, "")
+        row.insert(2, "")
+
+    # fix special 'continuation' case
+    elif size == 7 and row[4]=="* JATKUU *":
+        del row[4]
+
+    # normalize start of row into ([0-9]+ A) form
+    if "A" not in row[0]:
+        row[0] += " A " + row[1]
+        del row[1]
+
+    parts = row[0].split()
+
+    # add id
+    row[0] = parts.pop(0) + ' ' + parts.pop(0)
+
+    # add payment date
+    row.insert(1, parts.pop(0))
+
+    # merge and add vendor
+    vendor = ' '.join(parts)
+    row.insert(2, vendor)
+
+    # add valuation date and tx type
+    parts = row[3].split()
+    datev = parts.pop(0)
+    txtype = parts[0] if len(parts)==1 else ' '.join(parts)
+    del row[3]
+    row.insert(3, txtype)
+    row.insert(3, datev)
+
+    # merge message
+    msgparts = row[5:-2]
+    combined = ' '.join(msgparts)
+    del row[5:-2]
+    row.insert(5, combined)
+
+    return row
+
+
+def old_normalizerow(row):
     "fix row element count"
     row = list(row)
     row.sort(key=lambda e: e.x0)
     size = len(row)
+
+    txts = [e.get_text().strip() for e in row]
 
     if size == 6:
         pass
@@ -65,23 +126,7 @@ def normalizerow(row):
 
 def rowcontents(elms):
     for txtelmrow in txtelmrows(elms):
-        row = normalizerow(txtelmrow)
-
-        rowtxts = [e.get_text().strip() for e in row]
-        rowtxts[-1] = rowtxts[-1].replace(',', '.')
-
-        result = []
-        for i, txt in enumerate(rowtxts):
-            parts = [p.strip() for p in txt.split()]
-
-            if i==0:
-                result.extend((parts[0] + ' ' + parts[1] , parts[2], ' '.join(parts[3:])))
-            elif i==1:
-                result.extend(parts)
-            else:
-                result.append(txt)
-
-        yield result
+        yield normalizerow(txtrow(txtelmrow))
 
 
 def fixedrows(elms):
